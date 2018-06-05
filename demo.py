@@ -14,6 +14,9 @@ from scipy.interpolate import RegularGridInterpolator
 
 import tensorflow as tf
 
+import hemcee
+from helpers import TFModel
+
 session = tf.InteractiveSession()
 
 if len(sys.argv) > 1:
@@ -120,3 +123,17 @@ for _ in range(K):
     session.run(grad_log_like)
 end = time.time()
 print((end - strt) / K)
+
+ndim = 1
+
+# We will also tune the step size
+step = hemcee.step_size.VariableStepSize()
+
+# Set up the sampler
+sampler = hemcee.NoUTurnSampler(model.value, model.gradient, step_size=step)
+results = sampler.run_warmup(model.current_vector(), 100, tune_metric=False)
+
+coords_chain, logprob_chain = sampler.run_mcmc(results[0], 500,
+                                               initial_log_prob=results[1])
+
+np.savetxt("chain.txt", np.vstack((coords_chain[:, 0], logprob_chain)).T)
